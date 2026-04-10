@@ -16,7 +16,6 @@ import 'package:mobile/src/services/local_settings_service.dart';
 import 'package:mobile/src/services/push_service.dart';
 import 'package:mobile/src/theme.dart';
 import 'package:mobile/src/widgets/chatwoot_drawer.dart';
-import 'package:mobile/src/widgets/premium_nav_bar.dart';
 
 class SupportApp extends StatefulWidget {
   final AppConfig config;
@@ -172,6 +171,7 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
       },
       home: Scaffold(
         drawer: ChatwootDrawer(
+          selectedTabIndex: _tabIndex,
           agentName: _agent.agentName,
           agentEmail: _agent.agentEmail,
           inboxes: _agent.inboxes,
@@ -196,19 +196,9 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
           ],
         ),
         resizeToAvoidBottomInset: true,
-        body: Column(
-          children: [
-            Expanded(
-              child: FadeTransition(
-                opacity: _fadeAnim,
-                child: IndexedStack(index: _tabIndex, children: screens),
-              ),
-            ),
-            PremiumNavBar(
-              selectedIndex: _tabIndex,
-              onTap: _switchTab,
-            ),
-          ],
+        body: FadeTransition(
+          opacity: _fadeAnim,
+          child: IndexedStack(index: _tabIndex, children: screens),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import 'package:mobile/src/theme.dart';
 import 'package:mobile/src/widgets/kosmos_widgets.dart';
 
 class ChatwootDrawer extends StatelessWidget {
+  final int selectedTabIndex;
   final String? agentName;
   final String? agentEmail;
   final List<AgentInboxOption> inboxes;
@@ -13,6 +14,7 @@ class ChatwootDrawer extends StatelessWidget {
 
   const ChatwootDrawer({
     super.key,
+    this.selectedTabIndex = 0,
     this.agentName,
     this.agentEmail,
     this.inboxes = const [],
@@ -46,7 +48,7 @@ class ChatwootDrawer extends StatelessWidget {
                 _DrawerTile(
                   icon: Icons.forum_rounded,
                   title: "Диалоги",
-                  selected: true,
+                  selected: selectedTabIndex == 0,
                   onTap: () => _go(context, 0),
                 ),
                 _SubSection(
@@ -57,6 +59,13 @@ class ChatwootDrawer extends StatelessWidget {
                     _SubItem(label: "Быстрые ответы", onTap: () => _go(context, 0)),
                     _SubItem(label: "Задачи", onTap: () => _go(context, 0)),
                   ],
+                ),
+                const SizedBox(height: 4),
+                _DrawerTile(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  title: "Чат",
+                  selected: selectedTabIndex == 1,
+                  onTap: () => _go(context, 1),
                 ),
                 const SizedBox(height: 4),
                 _DrawerTile(
@@ -123,6 +132,7 @@ class ChatwootDrawer extends StatelessWidget {
               child: _DrawerTile(
                 icon: Icons.settings_outlined,
                 title: "Настройки",
+                selected: selectedTabIndex == 2,
                 onTap: () => _go(context, 2),
               ),
             ),

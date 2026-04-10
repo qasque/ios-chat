@@ -58,20 +58,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return AnimatedBuilder(
       animation: widget.agent,
       builder: (context, _) {
-        return ListView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-          children: [
-            _FadeInCard(
-              delay: 0,
-              child: _buildAgentSection(context),
-            ),
-            const SizedBox(height: 20),
-            _FadeInCard(
-              delay: 100,
-              child: _buildClientSection(context),
-            ),
-          ],
+        final bottomPad =
+            MediaQuery.paddingOf(context).bottom + 24;
+        return SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPad),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _FadeInCard(
+                delay: 0,
+                child: _buildAgentSection(context),
+              ),
+              const SizedBox(height: 20),
+              _FadeInCard(
+                delay: 100,
+                child: _buildClientSection(context),
+              ),
+            ],
+          ),
         );
       },
     );

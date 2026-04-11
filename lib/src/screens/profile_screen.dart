@@ -27,8 +27,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  late final TextEditingController _agentEmailCtrl;
-  late final TextEditingController _agentPasswordCtrl;
   late final TextEditingController _idCtrl;
   late final TextEditingController _emailCtrl;
   late final TextEditingController _nameCtrl;
@@ -36,8 +34,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _agentEmailCtrl = TextEditingController();
-    _agentPasswordCtrl = TextEditingController();
     _idCtrl = TextEditingController(text: widget.user?.id ?? "");
     _emailCtrl = TextEditingController(text: widget.user?.email ?? "");
     _nameCtrl = TextEditingController(text: widget.user?.name ?? "");
@@ -45,8 +41,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    _agentEmailCtrl.dispose();
-    _agentPasswordCtrl.dispose();
     _idCtrl.dispose();
     _emailCtrl.dispose();
     _nameCtrl.dispose();
@@ -71,11 +65,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 delay: 0,
                 child: _buildAgentSection(context),
               ),
-              const SizedBox(height: 20),
-              _FadeInCard(
-                delay: 100,
-                child: _buildClientSection(context),
-              ),
+              if (widget.agent.hasSession) ...[
+                const SizedBox(height: 20),
+                _FadeInCard(
+                  delay: 100,
+                  child: _buildWidgetTestExpansion(context),
+                ),
+              ],
             ],
           ),
         );
@@ -122,32 +118,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: Text(
-                      hasSession ? "Сессия активна" : "Войдите через мост",
-                      key: ValueKey(hasSession),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: hasSession
-                            ? AppColors.green
-                            : AppColors.textSecondary,
-                      ),
+                  const Text(
+                    "Сессия активна",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.green,
                     ),
                   ),
                 ],
               ),
             ),
-            AnimatedOpacity(
-              duration: const Duration(milliseconds: 300),
-              opacity: hasSession ? 1.0 : 0.0,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: AppColors.green,
-                  shape: BoxShape.circle,
-                ),
+            Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: AppColors.green,
+                shape: BoxShape.circle,
               ),
             ),
           ],
@@ -167,9 +153,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  widget.bridgeBaseUrl.isEmpty
+                  _displayBridgeUrl().isEmpty
                       ? "URL моста не задан"
-                      : widget.bridgeBaseUrl,
+                      : _displayBridgeUrl(),
                   style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
@@ -181,71 +167,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
-        if (!hasSession) ...[
-          const SizedBox(height: 14),
-          TextField(
-            controller: _agentEmailCtrl,
-            decoration: const InputDecoration(
-              labelText: "Email",
-              prefixIcon: Icon(Icons.email_outlined, size: 20),
-            ),
-            keyboardType: TextInputType.emailAddress,
-            autocorrect: false,
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _agentPasswordCtrl,
-            decoration: const InputDecoration(
-              labelText: "Пароль",
-              prefixIcon: Icon(Icons.lock_outline_rounded, size: 20),
-            ),
-            obscureText: true,
-            autocorrect: false,
-          ),
-          if (agent.error != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border:
-                    Border.all(color: AppColors.red.withValues(alpha: 0.3)),
-              ),
-              child: Text(
-                agent.error!,
-                style: const TextStyle(color: AppColors.red, fontSize: 13),
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          KosmosButton(
-            label: "Войти",
-            icon: Icons.login_rounded,
-            loading: agent.loadingProfile,
-            onPressed: widget.bridgeBaseUrl.trim().isEmpty
-                ? null
-                : () async {
-                    await widget.agent.loginWithBridge(
-                      bridgeBaseUrl: widget.bridgeBaseUrl,
-                      email: _agentEmailCtrl.text,
-                      password: _agentPasswordCtrl.text,
-                    );
-                    _agentPasswordCtrl.clear();
-                    await widget.onWorkspaceSessionChanged?.call();
-                    if (context.mounted) {
-                      showKosmosSnackBar(
-                        context,
-                        message: widget.agent.hasSession
-                            ? "Вход выполнен"
-                            : "Не удалось войти",
-                        isSuccess: widget.agent.hasSession,
-                        isError: !widget.agent.hasSession,
-                      );
-                    }
-                  },
-          ),
-        ],
         if (hasSession) ...[
           const SizedBox(height: 16),
           Container(
@@ -368,130 +289,120 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildClientSection(BuildContext context) {
+  Widget _buildWidgetTestExpansion(BuildContext context) {
     return _Card(
       children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            initiallyExpanded: false,
+            title: const Text(
+              "Тест виджета (опционально)",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
-              child: const Icon(
-                Icons.chat_outlined,
+            ),
+            subtitle: Text(
+              widget.defaultChatwootBaseUrl.isNotEmpty
+                  ? widget.defaultChatwootBaseUrl
+                  : "Не настроен",
+              style: const TextStyle(
+                fontSize: 12,
                 color: AppColors.textSecondary,
-                size: 22,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Клиентский виджет",
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.defaultChatwootBaseUrl.isNotEmpty
-                        ? widget.defaultChatwootBaseUrl
-                        : "Не настроен",
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _idCtrl,
-          decoration: const InputDecoration(
-            labelText: "User ID",
-            hintText: "user_123",
-            prefixIcon: Icon(Icons.fingerprint_rounded, size: 20),
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _emailCtrl,
-          decoration: const InputDecoration(
-            labelText: "Email",
-            hintText: "name@example.com",
-            prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _nameCtrl,
-          decoration: const InputDecoration(
-            labelText: "Имя",
-            hintText: "Иван Иванов",
-            prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
-          ),
-        ),
-        const SizedBox(height: 14),
-        KosmosButton(
-          label: "Сохранить профиль",
-          icon: Icons.save_rounded,
-          onPressed: () async {
-            await widget.onSignIn(
-              _idCtrl.text,
-              _emailCtrl.text,
-              _nameCtrl.text,
-            );
-            if (context.mounted) {
-              showKosmosSnackBar(
-                context,
-                message: "Профиль клиента сохранён",
-                isSuccess: true,
-              );
-            }
-          },
-        ),
-        if (widget.user != null) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.bg,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border, width: 0.5),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.check_circle_outline_rounded,
-                  size: 16,
-                  color: AppColors.green,
+            children: [
+              TextField(
+                controller: _idCtrl,
+                decoration: const InputDecoration(
+                  labelText: "User ID",
+                  hintText: "user_123",
+                  prefixIcon: Icon(Icons.fingerprint_rounded, size: 20),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    "${widget.user!.name} · ${widget.user!.email}",
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _emailCtrl,
+                decoration: const InputDecoration(
+                  labelText: "Email",
+                  hintText: "name@example.com",
+                  prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: "Имя",
+                  hintText: "Иван Иванов",
+                  prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
+                ),
+              ),
+              const SizedBox(height: 14),
+              KosmosButton(
+                label: "Сохранить профиль",
+                icon: Icons.save_rounded,
+                onPressed: () async {
+                  await widget.onSignIn(
+                    _idCtrl.text,
+                    _emailCtrl.text,
+                    _nameCtrl.text,
+                  );
+                  if (context.mounted) {
+                    showKosmosSnackBar(
+                      context,
+                      message: "Профиль для виджета сохранён",
+                      isSuccess: true,
+                    );
+                  }
+                },
+              ),
+              if (widget.user != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.bg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border, width: 0.5),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 16,
+                        color: AppColors.green,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "${widget.user!.name} · ${widget.user!.email}",
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
+            ],
           ),
-        ],
+        ),
       ],
     );
+  }
+
+  String _displayBridgeUrl() {
+    final a = widget.agent.bridgeBaseUrl.trim();
+    if (a.isNotEmpty) return a;
+    return widget.bridgeBaseUrl.trim();
   }
 
   String _initials(String? name) {

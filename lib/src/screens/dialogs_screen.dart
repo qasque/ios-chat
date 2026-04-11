@@ -23,20 +23,23 @@ class DialogsScreen extends StatelessWidget {
     return AnimatedBuilder(
       animation: Listenable.merge([controller, agent]),
       builder: (context, _) {
-        if (agent.hasSession && agent.selectedAccountId != null) {
-          return RefreshIndicator(
-            color: AppColors.accent,
-            backgroundColor: AppColors.surface,
-            edgeOffset: 0,
-            displacement: 40,
-            onRefresh: () async {
-              HapticFeedback.mediumImpact();
-              await agent.refreshConversations();
-            },
-            child: _agentDialogsBody(context),
-          );
+        if (!agent.hasSession) {
+          return _operatorGatePlaceholder(context);
         }
-        return _visitorPlaceholder(context);
+        if (agent.selectedAccountId == null) {
+          return const Center(child: KosmosSpinner(size: 28));
+        }
+        return RefreshIndicator(
+          color: AppColors.accent,
+          backgroundColor: AppColors.surface,
+          edgeOffset: 0,
+          displacement: 40,
+          onRefresh: () async {
+            HapticFeedback.mediumImpact();
+            await agent.refreshConversations();
+          },
+          child: _agentDialogsBody(context),
+        );
       },
     );
   }
@@ -82,139 +85,35 @@ class DialogsScreen extends StatelessWidget {
     }
   }
 
-  Widget _visitorPlaceholder(BuildContext context) {
-    final state = controller.state;
-    final lastMessage = state.messages.isEmpty ? null : state.messages.last;
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
-      children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: AppColors.border, width: 0.5),
+  Widget _operatorGatePlaceholder(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.forum_outlined,
+              size: 40,
+              color: AppColors.textTertiary,
             ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.support_agent_rounded,
-                  color: AppColors.accentLight,
-                  size: 20,
-                ),
+            const SizedBox(height: 16),
+            Text(
+              "Диалоги",
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Войдите как оператор на экране входа, чтобы загрузить очередь.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Поддержка",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: state.connected
-                                ? AppColors.green
-                                : AppColors.textTertiary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          state.connected ? "Онлайн" : "Подключение...",
-                          style: TextStyle(
-                            color: state.connected
-                                ? AppColors.green
-                                : AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              FilledButton(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  onOpenChat();
-                },
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                ),
-                child: const Text("Открыть"),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          child: _ConversationTile(
-            row: AgentConversationRow(
-              id: 0,
-              inboxId: null,
-              inboxName: "Встроенный виджет",
-              title: "LK VM test",
-              preview: lastMessage?.content?.trim().isNotEmpty == true
-                  ? lastMessage!.content!
-                  : "Новых сообщений пока нет",
-              status: state.connected ? "open" : "",
-              unreadCount: state.messages.length,
             ),
-            selected: false,
-            onTap: () {
-              HapticFeedback.selectionClick();
-              onOpenChat();
-            },
-          ),
+          ],
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border, width: 0.5),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.info_outline_rounded,
-                  size: 16,
-                  color: AppColors.textTertiary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    "Войдите как оператор, чтобы видеть все диалоги",
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

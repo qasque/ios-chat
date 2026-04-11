@@ -56,7 +56,13 @@ class AgentWorkspaceController extends ChangeNotifier {
 
   Future<void> restoreFromStorage(String defaultBridgeBaseUrl) async {
     await _settings.clearLegacyChatwootPatIfAny();
-    _bridgeBaseUrl = trimChatwootBase(defaultBridgeBaseUrl);
+    final saved = await _settings.readString(
+      LocalSettingsService.operatorBridgeBaseUrlKey,
+    );
+    final resolved = (saved != null && saved.trim().isNotEmpty)
+        ? saved
+        : defaultBridgeBaseUrl;
+    _bridgeBaseUrl = trimChatwootBase(resolved);
     _sessionJwt = await _settings.readMobileBridgeSession();
     final savedAcc = await _settings.readString(
       LocalSettingsService.selectedAgentAccountIdKey,
@@ -130,6 +136,10 @@ class AgentWorkspaceController extends ChangeNotifier {
       _bridgeBaseUrl = b;
       _sessionJwt = token;
       await _settings.writeMobileBridgeSession(token);
+      await _settings.writeString(
+        LocalSettingsService.operatorBridgeBaseUrlKey,
+        b,
+      );
       notifyListeners();
       await refreshProfile(loadInboxesAndConversations: true);
     } on ChatwootAgentException catch (e) {

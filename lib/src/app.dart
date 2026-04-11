@@ -6,9 +6,13 @@ import 'package:mobile/src/config/app_config.dart';
 import 'package:mobile/src/controllers/agent_workspace_controller.dart';
 import 'package:mobile/src/controllers/chat_controller.dart';
 import 'package:mobile/src/models/app_user.dart';
+import 'package:mobile/src/screens/bridge_settings_screen.dart';
 import 'package:mobile/src/screens/chat_screen.dart';
 import 'package:mobile/src/screens/dialogs_screen.dart';
+import 'package:mobile/src/screens/operator_login_screen.dart';
 import 'package:mobile/src/screens/profile_screen.dart';
+import 'package:mobile/src/screens/system_status_screen.dart';
+import 'package:mobile/src/services/bridge_api_service.dart';
 import 'package:mobile/src/services/auth_service.dart';
 import 'package:mobile/src/services/chat_service.dart';
 import 'package:mobile/src/services/deep_link_service.dart';
@@ -16,6 +20,7 @@ import 'package:mobile/src/services/local_settings_service.dart';
 import 'package:mobile/src/services/push_service.dart';
 import 'package:mobile/src/theme.dart';
 import 'package:mobile/src/widgets/chatwoot_drawer.dart';
+import 'package:mobile/src/widgets/kosmos_widgets.dart';
 
 class SupportApp extends StatefulWidget {
   final AppConfig config;
@@ -40,6 +45,8 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
   String _inboxIdentifier = "";
   String _chatwootBaseUrl = "";
   bool _isOnline = true;
+  bool _bootstrapped = false;
+  String? _pushToken;
 
   late final AnimationController _fadeCtrl;
   late final Animation<double> _fadeAnim;
@@ -71,7 +78,7 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
   Future<void> _bootstrap() async {
     await _agent.restoreFromStorage(widget.config.bridgeBaseUrl);
     final user = await _auth.currentUser();
-    await _push.initialize();
+    _pushToken = await _push.initialize();
     final savedInbox = await _settings.readString(
       LocalSettingsService.chatwootInboxIdentifierKey,
     );
@@ -82,8 +89,9 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
       _user = user;
       _inboxIdentifier = (savedInbox ?? widget.config.inboxIdentifier).trim();
       _chatwootBaseUrl = (savedBase ?? widget.config.chatwootBaseUrl).trim();
+      _bootstrapped = true;
     });
-    if (!_agent.hasSession) await _connectIfReady();
+    if (_agent.hasSession) await _connectIfReady();
   }
 
   Future<void> _connectIfReady() async {
@@ -109,6 +117,51 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
   String get _profileChatwootBase {
     if (_chatwootBaseUrl.isNotEmpty) return _chatwootBaseUrl;
     return widget.config.chatwootBaseUrl;
+  }
+
+  String get _effectiveBridgeBase {
+    final fromAgent = _agent.bridgeBaseUrl.trim();
+    if (fromAgent.isNotEmpty) return fromAgent;
+    return widget.config.bridgeBaseUrl.trim();
+  }
+
+  Future<void> _openBridgeSettings(BuildContext context) async {
+    final base = _effectiveBridgeBase;
+    if (base.isEmpty) return;
+    final botKey = await _settings.readString(
+          LocalSettingsService.bridgeBotKeyKey,
+        ) ??
+        "";
+    if (!context.mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (ctx) => Scaffold(
+          appBar: AppBar(title: const Text("Мост")),
+          body: BridgeSettingsScreen(
+            bridgeApi: BridgeApiService(baseUrl: base),
+            settings: _settings,
+            initialBotKey: botKey,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSystemStatus(BuildContext context) async {
+    final base = _effectiveBridgeBase;
+    if (base.isEmpty) return;
+    if (!context.mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (ctx) => Scaffold(
+          appBar: AppBar(title: const Text("Статус моста")),
+          body: SystemStatusScreen(
+            bridgeApi: BridgeApiService(baseUrl: base),
+            pushToken: _pushToken,
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _syncChatMode() async {
@@ -169,37 +222,57 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: Scaffold(
-        drawer: ChatwootDrawer(
-          selectedTabIndex: _tabIndex,
-          agentName: _agent.agentName,
-          agentEmail: _agent.agentEmail,
-          inboxes: _agent.inboxes,
-          onSelectTab: _switchTab,
-          onSelectInbox: (inboxId) {
-            _agent.setInboxFilter(inboxId);
-            _switchTab(0);
-          },
-        ),
-        appBar: AppBar(
-          title: const Text("Kosmos"),
-          actions: [
-            if (_agent.hasSession)
-              _StatusToggle(
-                isOnline: _isOnline,
-                onChanged: (v) {
-                  HapticFeedback.lightImpact();
-                  setState(() => _isOnline = v);
-                },
-              ),
-            const SizedBox(width: 4),
-          ],
-        ),
-        resizeToAvoidBottomInset: true,
-        body: FadeTransition(
-          opacity: _fadeAnim,
-          child: IndexedStack(index: _tabIndex, children: screens),
-        ),
+      home: ListenableBuilder(
+        listenable: _agent,
+        builder: (context, _) {
+          if (!_bootstrapped) {
+            return const Scaffold(
+              body: Center(child: KosmosSpinner(size: 28)),
+            );
+          }
+          if (!_agent.hasSession) {
+            return OperatorLoginScreen(
+              config: widget.config,
+              agent: _agent,
+              settings: _settings,
+              onWorkspaceSessionChanged: _syncChatMode,
+            );
+          }
+          return Scaffold(
+            drawer: ChatwootDrawer(
+              selectedTabIndex: _tabIndex,
+              agentName: _agent.agentName,
+              agentEmail: _agent.agentEmail,
+              inboxes: _agent.inboxes,
+              onSelectTab: _switchTab,
+              onSelectInbox: (inboxId) {
+                _agent.setInboxFilter(inboxId);
+                _switchTab(0);
+              },
+              onOpenBridge: () => _openBridgeSettings(context),
+              onOpenSystemStatus: () => _openSystemStatus(context),
+            ),
+            appBar: AppBar(
+              title: const Text("Kosmos"),
+              actions: [
+                if (_agent.hasSession)
+                  _StatusToggle(
+                    isOnline: _isOnline,
+                    onChanged: (v) {
+                      HapticFeedback.lightImpact();
+                      setState(() => _isOnline = v);
+                    },
+                  ),
+                const SizedBox(width: 4),
+              ],
+            ),
+            resizeToAvoidBottomInset: true,
+            body: FadeTransition(
+              opacity: _fadeAnim,
+              child: IndexedStack(index: _tabIndex, children: screens),
+            ),
+          );
+        },
       ),
     );
   }

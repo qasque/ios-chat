@@ -14,6 +14,8 @@ class LocalSettingsService {
   static const mobileBridgeSessionKey = "mobile.bridgeSessionJwt";
   static const selectedAgentAccountIdKey = "mobile.selectedAgentAccountId";
   static const selectedInboxFilterIdKey = "mobile.selectedInboxFilterId";
+  /// Последний URL моста для входа оператора (префилл после перезапуска).
+  static const operatorBridgeBaseUrlKey = "mobile.operatorBridgeBaseUrl";
 
   Future<String?> readBridgeSecret() => _secure.read(key: bridgeSecretKey);
   Future<void> writeBridgeSecret(String value) =>

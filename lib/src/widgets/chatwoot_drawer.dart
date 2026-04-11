@@ -11,6 +11,8 @@ class ChatwootDrawer extends StatelessWidget {
   final List<AgentInboxOption> inboxes;
   final ValueChanged<int> onSelectTab;
   final ValueChanged<int>? onSelectInbox;
+  final VoidCallback? onOpenBridge;
+  final VoidCallback? onOpenSystemStatus;
 
   const ChatwootDrawer({
     super.key,
@@ -20,6 +22,8 @@ class ChatwootDrawer extends StatelessWidget {
     this.inboxes = const [],
     required this.onSelectTab,
     this.onSelectInbox,
+    this.onOpenBridge,
+    this.onOpenSystemStatus,
   });
 
   void _go(BuildContext context, int index) {
@@ -89,9 +93,22 @@ class ChatwootDrawer extends StatelessWidget {
                   ),
                 const SizedBox(height: 4),
                 _DrawerTile(
-                  icon: Icons.smart_toy_outlined,
-                  title: "Капитан",
-                  onTap: () => _go(context, 0),
+                  icon: Icons.link_rounded,
+                  title: "Мост",
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).pop();
+                    onOpenBridge?.call();
+                  },
+                ),
+                _DrawerTile(
+                  icon: Icons.monitor_heart_outlined,
+                  title: "Статус моста",
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).pop();
+                    onOpenSystemStatus?.call();
+                  },
                 ),
                 _DrawerTile(
                   icon: Icons.people_outline_rounded,
@@ -106,11 +123,6 @@ class ChatwootDrawer extends StatelessWidget {
                 _DrawerTile(
                   icon: Icons.campaign_outlined,
                   title: "Кампании",
-                  onTap: () => _go(context, 0),
-                ),
-                _DrawerTile(
-                  icon: Icons.menu_book_outlined,
-                  title: "Центр поддержки",
                   onTap: () => _go(context, 0),
                 ),
               ],

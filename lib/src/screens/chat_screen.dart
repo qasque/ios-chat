@@ -186,10 +186,10 @@ class _ChatScreenState extends State<ChatScreen>
         final replies = [
           "Здравствуйте! Чем могу помочь?",
           "Одну минуту, уточню информацию.",
-          "Спасибо за обращение! Ваш вопрос решён.",
-          "Перевожу вас на специалиста.",
+          "Спасибо за обращение, вопрос закрыт.",
+          "Перевожу диалог коллеге.",
           "Пришлите, пожалуйста, скриншот.",
-          "Ваш запрос передан в техническую поддержку.",
+          "Передам в ответственную команду.",
         ];
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -262,9 +262,9 @@ class _ChatScreenState extends State<ChatScreen>
           child: state.messages.isEmpty
               ? const _EmptyChat(
                   icon: Icons.chat_bubble_outline_rounded,
-                  title: "Начните разговор",
+                  title: "Нет сообщений",
                   subtitle:
-                      "Напишите сообщение, чтобы связаться с поддержкой",
+                      "Здесь появится переписка тестового виджета (если настроен профиль в настройках).",
                 )
               : ListView.builder(
                   physics: const BouncingScrollPhysics(),
@@ -293,7 +293,7 @@ class _ChatScreenState extends State<ChatScreen>
                 _TypingDots(),
                 const SizedBox(width: 8),
                 const Text(
-                  "Оператор печатает",
+                  "Собеседник печатает",
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,

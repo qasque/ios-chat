@@ -26,9 +26,6 @@ class DialogsScreen extends StatelessWidget {
         if (!agent.hasSession) {
           return _operatorGatePlaceholder(context);
         }
-        if (agent.selectedAccountId == null) {
-          return const Center(child: KosmosSpinner(size: 28));
-        }
         return RefreshIndicator(
           color: AppColors.accent,
           backgroundColor: AppColors.surface,
@@ -36,7 +33,11 @@ class DialogsScreen extends StatelessWidget {
           displacement: 40,
           onRefresh: () async {
             HapticFeedback.mediumImpact();
-            await agent.refreshConversations();
+            if (agent.selectedAccountId == null) {
+              await agent.refreshProfile(loadInboxesAndConversations: true);
+            } else {
+              await agent.refreshConversations();
+            }
           },
           child: _agentDialogsBody(context),
         );
@@ -46,6 +47,21 @@ class DialogsScreen extends StatelessWidget {
 
   Widget _agentDialogsBody(BuildContext context) {
     final filtered = agent.filteredConversations;
+    if (agent.selectedAccountId == null) {
+      return CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+          SliverToBoxAdapter(child: _Header(agent: agent)),
+          SliverToBoxAdapter(child: _AssigneeTabs(agent: agent)),
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _WorkspaceLoading(agent: agent),
+          ),
+        ],
+      );
+    }
     return Column(
       children: [
         _Header(agent: agent),
@@ -111,6 +127,58 @@ class DialogsScreen extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Пока нет account_id после входа — не перекрываем весь экран спиннером,
+/// чтобы работали вкладки «Мои / Неназначен / Все» и pull-to-refresh.
+class _WorkspaceLoading extends StatelessWidget {
+  final AgentWorkspaceController agent;
+
+  const _WorkspaceLoading({required this.agent});
+
+  @override
+  Widget build(BuildContext context) {
+    final err = agent.error?.trim();
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const KosmosSpinner(size: 28),
+            const SizedBox(height: 16),
+            Text(
+              agent.loadingProfile
+                  ? "Загрузка кабинета…"
+                  : "Подключение к кабинету…",
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            if (err != null && err.isNotEmpty && !agent.loadingProfile) ...[
+              const SizedBox(height: 12),
+              Text(
+                err,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: AppColors.orange),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  agent.refreshProfile(loadInboxesAndConversations: true);
+                },
+                child: const Text("Повторить"),
+              ),
+            ],
           ],
         ),
       ),

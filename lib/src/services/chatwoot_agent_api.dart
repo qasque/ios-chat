@@ -12,6 +12,8 @@ String trimChatwootBase(String value) {
 }
 
 class ChatwootAgentApi {
+  static const Duration _httpTimeout = Duration(seconds: 45);
+
   final String baseUrl;
   final String? accessToken;
   final String? bridgeSessionJwt;
@@ -55,8 +57,24 @@ class ChatwootAgentApi {
     return Uri.parse("$b$p").replace(queryParameters: query);
   }
 
+  Future<http.Response> _get(Uri uri) =>
+      http.get(uri, headers: _headers).timeout(
+        _httpTimeout,
+        onTimeout: () => throw ChatwootAgentException(
+          "Превышено время ожидания ответа (${_httpTimeout.inSeconds} с)",
+        ),
+      );
+
+  Future<http.Response> _post(Uri uri, {Object? body}) =>
+      http.post(uri, headers: _headers, body: body).timeout(
+        _httpTimeout,
+        onTimeout: () => throw ChatwootAgentException(
+          "Превышено время ожидания ответа (${_httpTimeout.inSeconds} с)",
+        ),
+      );
+
   Future<Map<String, dynamic>> fetchProfile() async {
-    final res = await http.get(_uri("/api/v1/profile"), headers: _headers);
+    final res = await _get(_uri("/api/v1/profile"));
     _throwIfBad(res, "profile");
     final decoded = jsonDecode(res.body);
     if (decoded is Map) {
@@ -71,10 +89,7 @@ class ChatwootAgentApi {
   }
 
   Future<List<AgentInboxOption>> fetchInboxes(int accountId) async {
-    final res = await http.get(
-      _uri("/api/v1/accounts/$accountId/inboxes"),
-      headers: _headers,
-    );
+    final res = await _get(_uri("/api/v1/accounts/$accountId/inboxes"));
     _throwIfBad(res, "inboxes");
     final decoded = jsonDecode(res.body);
     final raw = _extractList(decoded);
@@ -106,10 +121,7 @@ class ChatwootAgentApi {
     if (inboxId != null) {
       q["inbox_id"] = "$inboxId";
     }
-    final res = await http.get(
-      _uri("/api/v1/accounts/$accountId/conversations", q),
-      headers: _headers,
-    );
+    final res = await _get(_uri("/api/v1/accounts/$accountId/conversations", q));
     _throwIfBad(res, "conversations");
     final decoded = jsonDecode(res.body);
     final raw = _extractList(decoded);
@@ -127,9 +139,8 @@ class ChatwootAgentApi {
     int accountId,
     int conversationId,
   ) async {
-    final res = await http.get(
+    final res = await _get(
       _uri("/api/v1/accounts/$accountId/conversations/$conversationId/messages"),
-      headers: _headers,
     );
     _throwIfBad(res, "messages");
     final decoded = jsonDecode(res.body);
@@ -144,11 +155,10 @@ class ChatwootAgentApi {
   ) async {
     final trimmed = content.trim();
     if (trimmed.isEmpty) return;
-    final res = await http.post(
+    final res = await _post(
       _uri(
         "/api/v1/accounts/$accountId/conversations/$conversationId/messages",
       ),
-      headers: _headers,
       body: jsonEncode({
         "content": trimmed,
         "message_type": "outgoing",

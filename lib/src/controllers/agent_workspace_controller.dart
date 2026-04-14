@@ -8,6 +8,9 @@ import 'package:mobile/src/services/local_settings_service.dart';
 
 class AgentWorkspaceController extends ChangeNotifier {
   final LocalSettingsService _settings;
+  Future<void> Function(AgentConversationRow row)? onNewConversation;
+  final Set<int> _knownConversationIds = <int>{};
+  bool _hasInitializedConversationSnapshot = false;
 
   AgentWorkspaceController(this._settings);
 
@@ -291,12 +294,24 @@ class AgentWorkspaceController extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      conversations = await api.fetchConversations(
+      final fetched = await api.fetchConversations(
         acc,
         inboxId: _inboxFilterId,
         knownInboxes: inboxes,
         agentId: _agentId,
       );
+      if (_hasInitializedConversationSnapshot) {
+        for (final row in fetched) {
+          if (!_knownConversationIds.contains(row.id)) {
+            onNewConversation?.call(row);
+          }
+        }
+      }
+      _knownConversationIds
+        ..clear()
+        ..addAll(fetched.map((row) => row.id));
+      _hasInitializedConversationSnapshot = true;
+      conversations = fetched;
     } on ChatwootAgentException catch (e) {
       error = e.message;
     } catch (e) {

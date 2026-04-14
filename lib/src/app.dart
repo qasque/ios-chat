@@ -16,6 +16,7 @@ import 'package:mobile/src/services/bridge_api_service.dart';
 import 'package:mobile/src/services/auth_service.dart';
 import 'package:mobile/src/services/chat_service.dart';
 import 'package:mobile/src/services/deep_link_service.dart';
+import 'package:mobile/src/services/local_notification_service.dart';
 import 'package:mobile/src/services/local_settings_service.dart';
 import 'package:mobile/src/services/push_service.dart';
 import 'package:mobile/src/theme.dart';
@@ -37,7 +38,9 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
       AgentWorkspaceController(_settings);
   late final ChatController _chatController = ChatController(ChatService());
   final _push = PushService();
+  final _localNotifications = LocalNotificationService();
   final _links = DeepLinkService();
+  Timer? _agentRefreshTimer;
 
   StreamSubscription<Uri>? _linkSub;
   AppUser? _user;
@@ -79,6 +82,10 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
     await _agent.restoreFromStorage(widget.config.bridgeBaseUrl);
     final user = await _auth.currentUser();
     _pushToken = await _push.initialize();
+    await _localNotifications.initialize();
+    _agent.onNewConversation = (row) {
+      return _localNotifications.showNewDialogNotification(row);
+    };
     final savedInbox = await _settings.readString(
       LocalSettingsService.chatwootInboxIdentifierKey,
     );
@@ -92,6 +99,7 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
       _bootstrapped = true;
     });
     if (_agent.hasSession) await _connectIfReady();
+    _syncAgentRefreshTimer();
   }
 
   Future<void> _connectIfReady() async {
@@ -171,12 +179,22 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
       await _connectIfReady();
     }
     if (mounted) setState(() {});
+    _syncAgentRefreshTimer();
+  }
+
+  void _syncAgentRefreshTimer() {
+    _agentRefreshTimer?.cancel();
+    if (!_agent.hasSession) return;
+    _agentRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      _agent.refreshConversations();
+    });
   }
 
   @override
   void dispose() {
     _fadeCtrl.dispose();
     _linkSub?.cancel();
+    _agentRefreshTimer?.cancel();
     _chatController.dispose();
     super.dispose();
   }
@@ -253,7 +271,19 @@ class _SupportAppState extends State<SupportApp> with TickerProviderStateMixin {
               onOpenSystemStatus: () => _openSystemStatus(context),
             ),
             appBar: AppBar(
-              title: const Text("Kosmos"),
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/branding/kosmos-orbit-mark.png',
+                    width: 22,
+                    height: 22,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text("Kosmos"),
+                ],
+              ),
               actions: [
                 if (_agent.hasSession)
                   _StatusToggle(

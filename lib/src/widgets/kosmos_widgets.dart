@@ -183,7 +183,7 @@ class _ShimmerBarPainter extends CustomPainter {
       old.progress != progress;
 }
 
-/// Avatar with gradient glow ring
+/// Avatar with optional accent ring (no CircleAvatar — lighter repaint).
 class KosmosAvatar extends StatelessWidget {
   final String initials;
   final double radius;
@@ -201,22 +201,30 @@ class KosmosAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = backgroundColor ?? AppColors.accent.withValues(alpha: 0.2);
-    final inner = CircleAvatar(
-      radius: radius,
-      backgroundColor: bg,
-      child: Text(
-        initials,
-        style: TextStyle(
-          color: AppColors.accentLight,
-          fontWeight: FontWeight.w700,
-          fontSize: radius * 0.7,
+    final d = radius * 2;
+    final inner = RepaintBoundary(
+      child: Container(
+        width: d,
+        height: d,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: bg,
+        ),
+        child: Text(
+          initials,
+          style: TextStyle(
+            color: AppColors.accentLight,
+            fontWeight: FontWeight.w700,
+            fontSize: radius * 0.7,
+          ),
         ),
       ),
     );
     if (!showRing) return inner;
     return Container(
       padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -224,7 +232,7 @@ class KosmosAvatar extends StatelessWidget {
           colors: [
             AppColors.accent,
             AppColors.accentLight,
-            AppColors.accent.withValues(alpha: 0.5),
+            AppColors.accentMuted,
           ],
         ),
       ),
@@ -364,6 +372,8 @@ class KosmosButton extends StatefulWidget {
   final IconData? icon;
   final bool loading;
   final bool danger;
+  /// Narrower vertical padding for toolbars / dense rows.
+  final bool compact;
 
   const KosmosButton({
     super.key,
@@ -374,6 +384,7 @@ class KosmosButton extends StatefulWidget {
     this.icon,
     this.loading = false,
     this.danger = false,
+    this.compact = false,
   });
 
   @override
@@ -426,16 +437,19 @@ class _KosmosButtonState extends State<KosmosButton>
                 : null,
             onTapCancel: enabled ? () => _pressCtrl.reverse() : null,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOutCubic,
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: EdgeInsets.symmetric(
+                vertical: widget.compact ? 10 : 14,
+              ),
               decoration: BoxDecoration(
                 color: widget.outlined
                     ? Colors.transparent
                     : (enabled
                         ? baseColor
                         : baseColor.withValues(alpha: 0.3)),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadii.md),
                 border: Border.all(
                   color: widget.outlined
                       ? (widget.danger
@@ -455,7 +469,9 @@ class _KosmosButtonState extends State<KosmosButton>
               ),
               child: Center(
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
+                  duration: const Duration(milliseconds: 280),
+                  switchInCurve: Curves.easeInOutCubic,
+                  switchOutCurve: Curves.easeInOutCubic,
                   child: widget.loading
                       ? KosmosSpinner(
                           key: const ValueKey("spin"),
@@ -504,6 +520,326 @@ class _KosmosButtonState extends State<KosmosButton>
   }
 }
 
+/// Branded gradient title for the app bar.
+class KosmosAppTitle extends StatelessWidget {
+  const KosmosAppTitle({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          'assets/branding/kosmos-orbit-mark.png',
+          width: 24,
+          height: 24,
+          fit: BoxFit.contain,
+        ),
+        const SizedBox(width: 8),
+        ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [AppColors.accentLight, AppColors.accentMuted],
+          ).createShader(bounds),
+          child: const Text(
+            "Kosmos",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.6,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Rounded surface with soft accent glow (replaces ad-hoc profile / settings cards).
+class KosmosSurfaceCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double borderRadius;
+  final bool showAccentCap;
+
+  const KosmosSurfaceCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+    this.borderRadius = AppRadii.lg,
+    this.showAccentCap = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(borderRadius),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.accent.withValues(alpha: 0.07),
+              blurRadius: 28,
+              offset: const Offset(0, 10),
+              spreadRadius: -12,
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.45),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+              spreadRadius: -14,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (showAccentCap)
+                Container(
+                  height: 3,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.accentLight,
+                        AppColors.accent,
+                        AppColors.accentMuted,
+                      ],
+                    ),
+                  ),
+                ),
+              Container(
+                padding: padding,
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  border: Border.all(color: AppColors.border, width: 0.5),
+                ),
+                child: child,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Text field with Kosmos styling (does not rely on theme defaults alone).
+class KosmosTextField extends StatelessWidget {
+  final TextEditingController? controller;
+  final String? labelText;
+  final String? hintText;
+  final IconData? prefixIcon;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final bool autocorrect;
+  final int? maxLines;
+
+  const KosmosTextField({
+    super.key,
+    this.controller,
+    this.labelText,
+    this.hintText,
+    this.prefixIcon,
+    this.obscureText = false,
+    this.keyboardType,
+    this.autocorrect = true,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      autocorrect: autocorrect,
+      maxLines: maxLines,
+      style: const TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 14,
+      ),
+      cursorColor: AppColors.accentLight,
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, size: 20, color: AppColors.textTertiary)
+            : null,
+        filled: true,
+        fillColor: AppColors.inputBg,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+        ),
+        labelStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 14,
+        ),
+        hintStyle: const TextStyle(
+          color: AppColors.textTertiary,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+}
+
+/// Toolbar / list icon control with haptic (replaces IconButton in key places).
+class KosmosIconAction extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+  final double iconSize;
+  final Color? color;
+  final String? tooltip;
+
+  const KosmosIconAction({
+    super.key,
+    required this.icon,
+    required this.onPressed,
+    this.iconSize = 22,
+    this.color,
+    this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.textSecondary;
+    final btn = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onPressed();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, size: iconSize, color: c),
+        ),
+      ),
+    );
+    if (tooltip == null || tooltip!.isEmpty) return btn;
+    return Tooltip(message: tooltip!, child: btn);
+  }
+}
+
+/// Compact primary pill for inline actions (e.g. visitor «Открыть»).
+class KosmosInlineButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+
+  const KosmosInlineButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.accent,
+      borderRadius: BorderRadius.circular(AppRadii.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onPressed();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Online / away chip for the app bar.
+class KosmosPresenceToggle extends StatelessWidget {
+  final bool isOnline;
+  final ValueChanged<bool> onChanged;
+
+  const KosmosPresenceToggle({
+    super.key,
+    required this.isOnline,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onChanged(!isOnline),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeInOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        margin: const EdgeInsets.only(right: 4),
+        decoration: BoxDecoration(
+          color: isOnline
+              ? AppColors.green.withValues(alpha: 0.14)
+              : AppColors.orange.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          border: Border.all(
+            color: isOnline
+                ? AppColors.green.withValues(alpha: 0.35)
+                : AppColors.orange.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOutCubic,
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isOnline ? AppColors.green : AppColors.orange,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              switchInCurve: Curves.easeInOutCubic,
+              switchOutCurve: Curves.easeInOutCubic,
+              child: Text(
+                isOnline ? "Онлайн" : "Отошёл",
+                key: ValueKey(isOnline),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isOnline ? AppColors.green : AppColors.orange,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Custom snackbar with icon and animation
 void showKosmosSnackBar(
   BuildContext context, {
@@ -539,7 +875,9 @@ void showKosmosSnackBar(
       ),
       backgroundColor: AppColors.surfaceLight,
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.md),
+      ),
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       duration: const Duration(seconds: 3),

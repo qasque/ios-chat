@@ -248,10 +248,15 @@ class ChatwootAgentApi {
   static List<dynamic> _extractList(dynamic decoded) {
     if (decoded is List) return decoded;
     if (decoded is Map) {
-      final payload = decoded["payload"];
-      if (payload is List) return payload;
+      final topPayload = decoded["payload"];
+      if (topPayload is List) return topPayload;
       final data = decoded["data"];
       if (data is List) return data;
+      // Chatwoot conversations list: { "data": { "meta": ..., "payload": [...] } }
+      if (data is Map) {
+        final nested = data["payload"];
+        if (nested is List) return nested;
+      }
     }
     return [];
   }
